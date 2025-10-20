@@ -6,7 +6,7 @@ import { useEthersSigner } from '../hooks/useEthersSigner';
 import { FHE_PURCHASE_MANAGER_ABI } from '../abi/FHEPurchaseManager';
 import { Contract } from 'ethers';
 
-const CONTRACT_ADDRESS = import.meta.env.VITE_CONTRACT_ADDRESS as string;
+const CONTRACT_ADDRESS = "0x5FdEb51a92548b3649Db400cA456d0d3D87675ea";
 
 export function HomeApp() {
   const { address } = useAccount();
@@ -159,6 +159,19 @@ export function HomeApp() {
             )}
           </div>
         </div>
+      </section>
+
+      <section style={{ marginTop: 24, background: '#f9fafb', padding: 16, borderRadius: 8, border: '1px solid #e5e7eb' }}>
+        <h3 style={{ marginTop: 0 }}>Project Gameplay</h3>
+        <p style={{ marginBottom: 12 }}>
+          Follow these steps to experience the encrypted purchase flow powered by Zama FHE.
+        </p>
+        <ol style={{ paddingLeft: 20, margin: 0, display: 'grid', gap: 8 }}>
+          <li>Connect wallet A and wait for the Zama encryption service to be ready.</li>
+          <li>Enter the purchase amount and recipient wallet B; both values are encrypted client-side before submission.</li>
+          <li>Submit the purchase to store the encrypted balance mapping without minting or transferring actual tokens.</li>
+          <li>Use the decrypt feature with your wallet to reveal the clear balance that the contract tracks for you.</li>
+        </ol>
       </section>
     </div>
   );
