@@ -1,15 +1,56 @@
 :root {
-  font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   line-height: 1.5;
   font-weight: 400;
+
+  --primary: #6366f1;
+  --primary-dark: #4f46e5;
+  --primary-light: #818cf8;
+  --secondary: #ec4899;
+  --success: #10b981;
+  --warning: #f59e0b;
+  --error: #ef4444;
+
+  --bg-primary: #0f172a;
+  --bg-secondary: #1e293b;
+  --bg-card: rgba(255, 255, 255, 0.05);
+  --text-primary: #f1f5f9;
+  --text-secondary: #94a3b8;
+  --border: rgba(255, 255, 255, 0.1);
 }
 
 body {
   margin: 0;
   min-height: 100vh;
-  background-color: #f9fafb;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%);
+  background-attachment: fixed;
+  color: var(--text-primary);
 }
 
 * {
   box-sizing: border-box;
+}
+
+input, button {
+  font-family: inherit;
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
 }

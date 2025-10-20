@@ -5,6 +5,7 @@ import { useZamaInstance } from '../hooks/useZamaInstance';
 import { useEthersSigner } from '../hooks/useEthersSigner';
 import { FHE_PURCHASE_MANAGER_ABI } from '../abi/FHEPurchaseManager';
 import { Contract } from 'ethers';
+import '../styles/HomeApp.css';
 
 const CONTRACT_ADDRESS = "0x5FdEb51a92548b3649Db400cA456d0d3D87675ea";
 
@@ -289,126 +290,164 @@ export function HomeApp() {
   };
 
   return (
-    <div style={{ maxWidth: 680, margin: '0 auto', padding: 16 }}>
-      <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
-        <h2 style={{ margin: 0 }}>FHE Purchase</h2>
+    <div className="home-container">
+      <header className="home-header">
+        <div>
+          <h1 className="home-title">🔐 FHE Trade</h1>
+          <p className="home-subtitle">Privacy-Preserving Decentralized Trading Platform</p>
+        </div>
         <ConnectButton />
       </header>
 
-      <section style={{ background: '#fff', padding: 16, borderRadius: 8, border: '1px solid #e5e7eb', marginBottom: 24 }}>
-        <h3 style={{ marginTop: 0 }}>Create Purchase</h3>
-        <div style={{ display: 'grid', gap: 12 }}>
-          <label>
-            <div>Amount</div>
+      <section className="card">
+        <h3 className="card-title">
+          <span className="card-title-icon">💳</span>
+          Create Purchase
+        </h3>
+        <div className="form-grid">
+          <div>
+            <label className="form-label">Amount</label>
             <input
               type="number"
               min={1}
               step={1}
               value={amount}
               onChange={(e) => setAmount(e.target.value)}
-              style={{ width: '100%', padding: 8 }}
+              className="form-input"
+              placeholder="Enter amount..."
             />
-          </label>
-          <label>
-            <div>Recipient Address</div>
+          </div>
+          <div>
+            <label className="form-label">Recipient Address</label>
             <input
               type="text"
               placeholder="0x..."
               value={recipient}
               onChange={(e) => setRecipient(e.target.value)}
-              style={{ width: '100%', padding: 8 }}
+              className="form-input"
             />
-          </label>
-          <button onClick={handlePurchase} disabled={submitting} style={{ padding: '8px 12px' }}>
+          </div>
+          <button onClick={handlePurchase} disabled={submitting} className="btn btn-primary">
+            {submitting && <span className="loading-spinner"></span>}
             {submitting ? 'Submitting...' : 'Submit Purchase'}
           </button>
           {txHash && (
-            <div style={{ fontSize: 12, color: '#4b5563' }}>Tx: {txHash}</div>
+            <div className="tx-hash">
+              <strong>Transaction:</strong> {txHash}
+            </div>
           )}
         </div>
       </section>
 
-      <section style={{ background: '#fff', padding: 16, borderRadius: 8, border: '1px solid #e5e7eb', marginBottom: 24 }}>
-        <h3 style={{ marginTop: 0 }}>Purchase Requests</h3>
-        <div style={{ display: 'grid', gap: 12 }}>
-          <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
-            <button onClick={decryptPurchases} disabled={decryptingPurchases} style={{ padding: '8px 12px' }}>
-              {decryptingPurchases ? 'Decrypting...' : 'Decrypt Purchases'}
+      <section className="card">
+        <h3 className="card-title">
+          <span className="card-title-icon">📦</span>
+          Purchase Requests
+        </h3>
+        <div className="form-grid">
+          <div className="section-header">
+            <button onClick={decryptPurchases} disabled={decryptingPurchases} className="btn btn-secondary">
+              {decryptingPurchases && <span className="loading-spinner"></span>}
+              {decryptingPurchases ? 'Decrypting...' : '🔓 Decrypt Purchases'}
             </button>
-            {loadingPurchases && <span style={{ color: '#4b5563' }}>Loading purchases...</span>}
-            {purchaseError && <span style={{ color: '#dc2626' }}>{purchaseError}</span>}
-            {decryptError && !purchaseError && <span style={{ color: '#dc2626' }}>{decryptError}</span>}
+            <div>
+              {loadingPurchases && <span className="status-text">Loading purchases...</span>}
+              {purchaseError && <span className="status-text status-error">{purchaseError}</span>}
+              {decryptError && !purchaseError && <span className="status-text status-error">{decryptError}</span>}
+            </div>
           </div>
 
-          <div>
-            <h4 style={{ margin: '8px 0' }}>Sent by Me</h4>
+          <div className="purchase-section">
+            <h4 className="purchase-section-title">📤 Sent by Me</h4>
             {sentPurchases.length === 0 ? (
-              <div style={{ color: '#6b7280', fontSize: 14 }}>No purchases submitted yet.</div>
+              <div className="empty-state">No purchases submitted yet.</div>
             ) : (
-              <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'grid', gap: 8 }}>
+              <div className="purchases-grid">
                 {sentPurchases.map((p) => (
-                  <li key={p.id} style={{ border: '1px solid #e5e7eb', borderRadius: 8, padding: 12 }}>
-                    <div style={{ fontWeight: 600 }}>Purchase #{p.id}</div>
-                    <div style={{ fontSize: 13, color: '#4b5563' }}>Buyer: {p.buyer}</div>
-                    <div style={{ fontSize: 13, color: '#4b5563' }}>Recipient: {p.recipientPlain || 'Encrypted'}</div>
-                    <div style={{ fontSize: 13, color: '#4b5563' }}>Remaining: {p.remainingPlain || 'Encrypted'}</div>
-                  </li>
+                  <div key={p.id} className="purchase-card">
+                    <div className="purchase-card-header">Purchase #{p.id}</div>
+                    <div className="purchase-card-detail">
+                      <strong>Buyer:</strong>
+                      <span>{p.buyer.slice(0, 6)}...{p.buyer.slice(-4)}</span>
+                    </div>
+                    <div className="purchase-card-detail">
+                      <strong>Recipient:</strong>
+                      <span>{p.recipientPlain ? `${p.recipientPlain.slice(0, 6)}...${p.recipientPlain.slice(-4)}` : '🔒 Encrypted'}</span>
+                    </div>
+                    <div className="purchase-card-detail">
+                      <strong>Remaining:</strong>
+                      <span>{p.remainingPlain || '🔒 Encrypted'}</span>
+                    </div>
+                  </div>
                 ))}
-              </ul>
+              </div>
             )}
           </div>
 
-          <div>
-            <h4 style={{ margin: '8px 0' }}>Received by Me</h4>
+          <div className="purchase-section">
+            <h4 className="purchase-section-title">📥 Received by Me</h4>
             {normalizedAddress ? (
               receivedPurchases.length === 0 ? (
-                <div style={{ color: '#6b7280', fontSize: 14 }}>
+                <div className="empty-state">
                   {decryptingPurchases || purchases.length === 0
                     ? 'Decrypt purchases to reveal incoming requests.'
                     : 'No purchase requests found for your address.'}
                 </div>
               ) : (
-                <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'grid', gap: 8 }}>
+                <div className="purchases-grid">
                   {receivedPurchases.map((p) => (
-                    <li key={p.id} style={{ border: '1px solid #e5e7eb', borderRadius: 8, padding: 12 }}>
-                      <div style={{ fontWeight: 600 }}>Purchase #{p.id}</div>
-                      <div style={{ fontSize: 13, color: '#4b5563' }}>Buyer: {p.buyer}</div>
-                      <div style={{ fontSize: 13, color: '#4b5563' }}>Remaining: {p.remainingPlain || 'Encrypted'}</div>
-                    </li>
+                    <div key={p.id} className="purchase-card">
+                      <div className="purchase-card-header">Purchase #{p.id}</div>
+                      <div className="purchase-card-detail">
+                        <strong>Buyer:</strong>
+                        <span>{p.buyer.slice(0, 6)}...{p.buyer.slice(-4)}</span>
+                      </div>
+                      <div className="purchase-card-detail">
+                        <strong>Remaining:</strong>
+                        <span>{p.remainingPlain || '🔒 Encrypted'}</span>
+                      </div>
+                    </div>
                   ))}
-                </ul>
+                </div>
               )
             ) : (
-              <div style={{ color: '#6b7280', fontSize: 14 }}>Connect a wallet to view received purchases.</div>
+              <div className="empty-state">Connect a wallet to view received purchases.</div>
             )}
           </div>
         </div>
       </section>
 
-      <section style={{ background: '#fff', padding: 16, borderRadius: 8, border: '1px solid #e5e7eb' }}>
-        <h3 style={{ marginTop: 0 }}>My Balance</h3>
-        <div style={{ display: 'grid', gap: 12 }}>
-          <div>
-            <div>Encrypted Handle</div>
-            <code style={{ fontSize: 12 }}>{(encBalance as string) || '0x00'}</code>
+      <section className="card">
+        <h3 className="card-title">
+          <span className="card-title-icon">💰</span>
+          My Balance
+        </h3>
+        <div className="form-grid">
+          <div className="balance-display">
+            <div className="balance-label">Encrypted Handle</div>
+            <div className="balance-value">{(encBalance as string) || '0x00'}</div>
           </div>
           <div>
-            <button onClick={decryptMyBalance} disabled={decrypting || !encBalance} style={{ padding: '8px 12px' }}>
-              {decrypting ? 'Decrypting...' : 'Decrypt My Balance'}
+            <button onClick={decryptMyBalance} disabled={decrypting || !encBalance} className="btn btn-primary">
+              {decrypting && <span className="loading-spinner"></span>}
+              {decrypting ? 'Decrypting...' : '🔓 Decrypt My Balance'}
             </button>
             {decryptedBalance !== null && (
-              <div style={{ marginTop: 8 }}>Balance: {decryptedBalance}</div>
+              <div className="balance-result">Balance: {decryptedBalance}</div>
             )}
           </div>
         </div>
       </section>
 
-      <section style={{ marginTop: 24, background: '#f9fafb', padding: 16, borderRadius: 8, border: '1px solid #e5e7eb' }}>
-        <h3 style={{ marginTop: 0 }}>Project Gameplay</h3>
-        <p style={{ marginBottom: 12 }}>
+      <section className="card gameplay-card">
+        <h3 className="card-title">
+          <span className="card-title-icon">🎮</span>
+          How It Works
+        </h3>
+        <p className="gameplay-description">
           Follow these steps to experience the encrypted purchase flow powered by Zama FHE.
         </p>
-        <ol style={{ paddingLeft: 20, margin: 0, display: 'grid', gap: 8 }}>
+        <ol className="gameplay-steps">
           <li>Connect wallet A and wait for the Zama encryption service to be ready.</li>
           <li>Enter the purchase amount and recipient wallet B; both values are encrypted client-side before submission.</li>
           <li>Submit the purchase to store the encrypted balance mapping without minting or transferring actual tokens.</li>
