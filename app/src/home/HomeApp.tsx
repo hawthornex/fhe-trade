@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { useAccount, useReadContract } from 'wagmi';
+import { useEffect, useMemo, useState } from 'react';
+import { useAccount, usePublicClient, useReadContract } from 'wagmi';
 import { ConnectButton } from '@rainbow-me/rainbowkit';
 import { useZamaInstance } from '../hooks/useZamaInstance';
 import { useEthersSigner } from '../hooks/useEthersSigner';
@@ -12,6 +12,7 @@ export function HomeApp() {
   const { address } = useAccount();
   const signerPromise = useEthersSigner();
   const { instance } = useZamaInstance();
+  const publicClient = usePublicClient();
 
   const [amount, setAmount] = useState('');
   const [recipient, setRecipient] = useState('');
@@ -21,6 +22,21 @@ export function HomeApp() {
   const [decryptedBalance, setDecryptedBalance] = useState<string | null>(null);
   const [decrypting, setDecrypting] = useState(false);
 
+  const [loadingPurchases, setLoadingPurchases] = useState(false);
+  const [purchaseError, setPurchaseError] = useState<string | null>(null);
+  const [purchases, setPurchases] = useState<
+    Array<{
+      id: number;
+      buyer: string;
+      remainingHandle: string;
+      recipientHandle: string;
+      remainingPlain?: string;
+      recipientPlain?: string;
+    }>
+  >([]);
+  const [decryptingPurchases, setDecryptingPurchases] = useState(false);
+  const [decryptError, setDecryptError] = useState<string | null>(null);
+
   const { data: encBalance } = useReadContract({
     address: CONTRACT_ADDRESS as `0x${string}`,
     abi: FHE_PURCHASE_MANAGER_ABI,
@@ -28,6 +44,63 @@ export function HomeApp() {
     args: address ? [address] : undefined,
     query: { enabled: !!address && !!CONTRACT_ADDRESS },
   });
+
+  useEffect(() => {
+    let cancelled = false;
+    const load = async () => {
+      if (!publicClient) return;
+      setLoadingPurchases(true);
+      setPurchaseError(null);
+      try {
+        const countResult = await publicClient.readContract({
+          address: CONTRACT_ADDRESS as `0x${string}`,
+          abi: FHE_PURCHASE_MANAGER_ABI,
+          functionName: 'getPurchaseCount',
+        });
+        const count = Number(countResult as bigint);
+        if (count === 0) {
+          if (!cancelled) setPurchases([]);
+          return;
+        }
+        const entries = await Promise.all(
+          Array.from({ length: count }, (_, index) =>
+            publicClient.readContract({
+              address: CONTRACT_ADDRESS as `0x${string}`,
+              abi: FHE_PURCHASE_MANAGER_ABI,
+              functionName: 'getPurchase',
+              args: [BigInt(index)],
+            })
+          )
+        );
+        if (!cancelled) {
+          const normalized = entries.map((entry, index) => {
+            const [buyer, remaining, recipient] = entry as [string, string, string];
+            return {
+              id: index,
+              buyer,
+              remainingHandle: remaining,
+              recipientHandle: recipient,
+            };
+          });
+          setPurchases(normalized);
+        }
+      } catch (error: any) {
+        console.error('Failed to load purchases', error);
+        if (!cancelled) {
+          setPurchaseError(error?.message || 'Failed to load purchases');
+          setPurchases([]);
+        }
+      } finally {
+        if (!cancelled) {
+          setLoadingPurchases(false);
+        }
+      }
+    };
+    load();
+    return () => {
+      cancelled = true;
+    };
+  }, [publicClient, txHash, address]);
 
   const handlePurchase = async () => {
     if (!address) return alert('Connect wallet');
@@ -62,6 +135,118 @@ export function HomeApp() {
       setSubmitting(false);
     }
   };
+
+  const normalizeRecipientAddress = (value: string | undefined) => {
+    if (!value) return undefined;
+    try {
+      const big = value.startsWith('0x') ? BigInt(value) : BigInt(value);
+      const hex = big.toString(16).padStart(40, '0');
+      return `0x${hex}`;
+    } catch (err) {
+      console.error('Failed to normalize recipient address', err);
+      return undefined;
+    }
+  };
+
+  const normalizeAmount = (value: string | undefined) => {
+    if (!value) return undefined;
+    try {
+      const big = value.startsWith('0x') ? BigInt(value) : BigInt(value);
+      return big.toString();
+    } catch (err) {
+      console.error('Failed to normalize amount', err);
+      return value;
+    }
+  };
+
+  const decryptPurchases = async () => {
+    if (!instance || !address) {
+      alert('Connect wallet and ensure encryption service is ready');
+      return;
+    }
+    if (!purchases.length) {
+      alert('No purchases to decrypt');
+      return;
+    }
+
+    const handles = new Map<string, { handle: string; contractAddress: string }>();
+    purchases.forEach((p) => {
+      if (!handles.has(p.remainingHandle)) {
+        handles.set(p.remainingHandle, { handle: p.remainingHandle, contractAddress: CONTRACT_ADDRESS });
+      }
+      if (!handles.has(p.recipientHandle)) {
+        handles.set(p.recipientHandle, { handle: p.recipientHandle, contractAddress: CONTRACT_ADDRESS });
+      }
+    });
+
+    if (handles.size === 0) {
+      alert('No handles available for decryption');
+      return;
+    }
+
+    setDecryptingPurchases(true);
+    setDecryptError(null);
+    try {
+      const keypair = instance.generateKeypair();
+      const contractAddresses = [CONTRACT_ADDRESS];
+      const startTimeStamp = Math.floor(Date.now() / 1000).toString();
+      const durationDays = '10';
+      const eip712 = instance.createEIP712(keypair.publicKey, contractAddresses, startTimeStamp, durationDays);
+      const signer = await signerPromise;
+      if (!signer) throw new Error('Signer not available');
+      const signature = await signer.signTypedData(
+        eip712.domain,
+        { UserDecryptRequestVerification: eip712.types.UserDecryptRequestVerification },
+        eip712.message
+      );
+
+      const result = await instance.userDecrypt(
+        Array.from(handles.values()),
+        keypair.privateKey,
+        keypair.publicKey,
+        signature.replace('0x', ''),
+        contractAddresses,
+        address,
+        startTimeStamp,
+        durationDays
+      );
+
+      setPurchases((prev) =>
+        prev.map((p) => {
+          const remainingClear = result[p.remainingHandle];
+          const recipientClear = result[p.recipientHandle];
+          return {
+            ...p,
+            remainingPlain: normalizeAmount(remainingClear ?? p.remainingPlain),
+            recipientPlain: normalizeRecipientAddress(recipientClear ?? p.recipientPlain),
+          };
+        })
+      );
+    } catch (err: any) {
+      console.error('Failed to decrypt purchases', err);
+      setDecryptError(err?.message || 'Failed to decrypt purchases');
+      alert(err?.message || 'Failed to decrypt purchases');
+    } finally {
+      setDecryptingPurchases(false);
+    }
+  };
+
+  const normalizedAddress = address?.toLowerCase();
+  const sentPurchases = useMemo(
+    () =>
+      normalizedAddress
+        ? purchases.filter((p) => p.buyer.toLowerCase() === normalizedAddress)
+        : [],
+    [normalizedAddress, purchases]
+  );
+
+  const receivedPurchases = useMemo(
+    () =>
+      normalizedAddress
+        ? purchases.filter((p) => p.recipientPlain && p.recipientPlain.toLowerCase() === normalizedAddress)
+        : [],
+    [normalizedAddress, purchases]
+  );
 
   const decryptMyBalance = async () => {
     if (!instance || !address) return;
@@ -140,6 +325,63 @@ export function HomeApp() {
           {txHash && (
             <div style={{ fontSize: 12, color: '#4b5563' }}>Tx: {txHash}</div>
           )}
+        </div>
+      </section>
+
+      <section style={{ background: '#fff', padding: 16, borderRadius: 8, border: '1px solid #e5e7eb', marginBottom: 24 }}>
+        <h3 style={{ marginTop: 0 }}>Purchase Requests</h3>
+        <div style={{ display: 'grid', gap: 12 }}>
+          <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
+            <button onClick={decryptPurchases} disabled={decryptingPurchases} style={{ padding: '8px 12px' }}>
+              {decryptingPurchases ? 'Decrypting...' : 'Decrypt Purchases'}
+            </button>
+            {loadingPurchases && <span style={{ color: '#4b5563' }}>Loading purchases...</span>}
+            {purchaseError && <span style={{ color: '#dc2626' }}>{purchaseError}</span>}
+            {decryptError && !purchaseError && <span style={{ color: '#dc2626' }}>{decryptError}</span>}
+          </div>
+
+          <div>
+            <h4 style={{ margin: '8px 0' }}>Sent by Me</h4>
+            {sentPurchases.length === 0 ? (
+              <div style={{ color: '#6b7280', fontSize: 14 }}>No purchases submitted yet.</div>
+            ) : (
+              <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'grid', gap: 8 }}>
+                {sentPurchases.map((p) => (
+                  <li key={p.id} style={{ border: '1px solid #e5e7eb', borderRadius: 8, padding: 12 }}>
+                    <div style={{ fontWeight: 600 }}>Purchase #{p.id}</div>
+                    <div style={{ fontSize: 13, color: '#4b5563' }}>Buyer: {p.buyer}</div>
+                    <div style={{ fontSize: 13, color: '#4b5563' }}>Recipient: {p.recipientPlain || 'Encrypted'}</div>
+                    <div style={{ fontSize: 13, color: '#4b5563' }}>Remaining: {p.remainingPlain || 'Encrypted'}</div>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+
+          <div>
+            <h4 style={{ margin: '8px 0' }}>Received by Me</h4>
+            {normalizedAddress ? (
+              receivedPurchases.length === 0 ? (
+                <div style={{ color: '#6b7280', fontSize: 14 }}>
+                  {decryptingPurchases || purchases.length === 0
+                    ? 'Decrypt purchases to reveal incoming requests.'
+                    : 'No purchase requests found for your address.'}
+                </div>
+              ) : (
+                <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'grid', gap: 8 }}>
+                  {receivedPurchases.map((p) => (
+                    <li key={p.id} style={{ border: '1px solid #e5e7eb', borderRadius: 8, padding: 12 }}>
+                      <div style={{ fontWeight: 600 }}>Purchase #{p.id}</div>
+                      <div style={{ fontSize: 13, color: '#4b5563' }}>Buyer: {p.buyer}</div>
+                      <div style={{ fontSize: 13, color: '#4b5563' }}>Remaining: {p.remainingPlain || 'Encrypted'}</div>
+                    </li>
+                  ))}
+                </ul>
+              )
+            ) : (
+              <div style={{ color: '#6b7280', fontSize: 14 }}>Connect a wallet to view received purchases.</div>
+            )}
+          </div>
         </div>
       </section>
 
