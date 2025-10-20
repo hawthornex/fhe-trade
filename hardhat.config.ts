@@ -35,10 +35,10 @@ const config: HardhatUserConfig = {
     excludeContracts: [],
   },
   networks: {
-    hardhat: {
-      accounts: PRIVATE_KEY ? ["0x" + PRIVATE_KEY] : undefined,
-      chainId: 31337,
-    },
+    // hardhat: {
+    //   accounts: PRIVATE_KEY ? ["0x" + PRIVATE_KEY] : undefined,
+    //   chainId: 31337,
+    // },
     anvil: {
       accounts: PRIVATE_KEY ? ["0x" + PRIVATE_KEY] : undefined,
       chainId: 31337,
