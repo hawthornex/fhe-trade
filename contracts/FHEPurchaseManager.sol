@@ -2,11 +2,11 @@
 pragma solidity ^0.8.24;
 
 import {FHE, euint32, euint256, ebool, externalEuint32, externalEuint256} from "@fhevm/solidity/lib/FHE.sol";
-import {SepoliaConfig} from "@fhevm/solidity/config/ZamaConfig.sol";
+import {ZamaEthereumConfig} from "@fhevm/solidity/config/ZamaConfig.sol";
 
 /// @title FHE-based purchase manager
 /// @notice Records encrypted purchase requests and lets the correct recipient privately claim once
-contract FHEPurchaseManager is SepoliaConfig {
+contract FHEPurchaseManager is ZamaEthereumConfig {
     struct Purchase {
         address buyer;
         euint32 remaining; // remaining amount that can be claimed (encrypted)

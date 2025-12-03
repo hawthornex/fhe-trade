@@ -7,7 +7,7 @@ import { FHE_PURCHASE_MANAGER_ABI } from '../abi/FHEPurchaseManager';
 import { Contract } from 'ethers';
 import '../styles/HomeApp.css';
 
-const CONTRACT_ADDRESS = "0x5FdEb51a92548b3649Db400cA456d0d3D87675ea";
+const CONTRACT_ADDRESS = "0x2f9028Fe5a30eEC3450938fd6307d0ac3514c82d";
 
 export function HomeApp() {
   const { address } = useAccount();
